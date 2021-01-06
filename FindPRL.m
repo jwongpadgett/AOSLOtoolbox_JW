@@ -4,8 +4,9 @@
 clear all
 close all
 
-T =17;              %Stimulus is less than this threshold pixel value (norm 15)
+T =13;              %Stimulus is less than this threshold pixel value (norm 15)
 bOfflineStab =false;
+noisy =true;
 
 %Load the stabilized image
 [fname,pname] = uigetfile('*.avi','Open AVI file');
@@ -16,9 +17,9 @@ AVIdetails = aviinfo([pname '\' fname]);
 startframe = 1;
 endframe = AVIdetails.NumFrames;
 width = AVIdetails.Width;
-wBuffer = max(1,floor(width-712)/2);
+wBuffer = max(1,floor((width-712)/2));
 height = AVIdetails.Height;
-hBuffer = max(1,floor(height-712)/2);
+hBuffer = max(1,floor((height-712)/2));
 if(bOfflineStab)
     sumframe = zeros(min(height,712),min(width,712));
     sumframebinary=ones(min(height,712),min(width,712));
@@ -41,6 +42,9 @@ for framenum = startframe:endframe
     if(bOfflineStab)
         
         currentframe = currentframe(hBuffer:min(height,hBuffer+711),wBuffer:min(width,wBuffer+711),3); % For offline stabilized videos
+    end
+    if(noisy)
+       currentframe = imgaussfilt(currentframe);
     end
     currentframe = currentframe/(max(max(currentframe)));
     %Extract the stimulus (set to 1) from the background (set to 0);
@@ -68,7 +72,7 @@ for framenum = startframe:endframe
         imshow(sumframe/max(max(sumframe)),'InitialMagnification',100);hold on        
         plot((X(ind)),(Y(ind)),'.g');
         fixationframe((round(Y(ind))-2):1:(round(Y(ind)+2)),(round(X(ind)-2)):1:(round(X(ind)+2)))=1;
-        sumframe(round(X(ind)), round(Y(ind)))=0;
+        sumframe((round(Y(ind))-2):1:(round(Y(ind)+2)),(round(X(ind)-2)):1:(round(X(ind)+2)))=0;
         %imshow(fixationframe,[]);
         drawnow;
         ind = ind + 1;
