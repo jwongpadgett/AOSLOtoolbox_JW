@@ -13,14 +13,14 @@
 % split detection PMTs. It generates a split detection and a dark field
 % image. The user should only select the confocal videos to process and the
 % software will automatically process the confocal and split videos.
-
-params.minimummeanlevel = 45; %Use survey videos to judge.%Descriptions at line 115;
-params.blinkthreshold =10;
-params.coarseframeincrement =17;
-params.peakratiodiff = 0.2;
-params.maxmotionthreshold=0.3;
-params.badsamplethreshold=0.6;
-
+clear all
+params.minimummeanlevel = 41; %Use survey videos to judge.%Descriptions at line 115;
+params.blinkthreshold = 8.5;
+params.coarseframeincrement =10;
+params.peakratiodiff = 0.09;
+params.maxmotionthreshold=0.2;
+params.badsamplethreshold=0.7;
+params.numSkip =0;
 
 rand('state',sum(100 * clock));
 randn('state',sum(100 * clock));
@@ -303,7 +303,7 @@ for filecounter = 1:numfiletoanalyse
         
         set(texthandles(currenttexthandleindex),'FontWeight','Bold');
         currenttexthandleindex = currenttexthandleindex + 1;
-        blinkframes = getblinkframes(videotoanalyse, blinkthreshold, minimummeanlevel,blinkverbosity);
+        blinkframes = getblinkframes(videotoanalyse, blinkthreshold, minimummeanlevel,blinkverbosity,params.numSkip);
         
         if tofilter
             set(texthandles(currenttexthandleindex - 1),'FontWeight','Normal');

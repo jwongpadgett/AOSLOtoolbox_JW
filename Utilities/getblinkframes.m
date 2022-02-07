@@ -1,4 +1,4 @@
-function blinkframes = getblinkframes(videoname,blinkthreshold,minframemean,verbose)
+function blinkframes = getblinkframes(videoname,blinkthreshold,minframemean,verbose,numSkip)
 % getbadframes.m. This is a utility program that locates blinks in a AOSLO video. The start of a blink is accompanied by a sudden sharp decrease in
 % luminance captured by the instrument. Therefore this program marks the start of a blink if the difference in mean pixel level between two frames
 % is below a cetain thresold.
@@ -8,7 +8,7 @@ function blinkframes = getblinkframes(videoname,blinkthreshold,minframemean,verb
 % videoname               - The string that is the name of a video or a 3D  matrix containing a collection of frames. If  neither type of datatype is
 %                                 supplied the program will query the user to choose a video.
 % blinkthreshold          - The minimum drop mean pixel level that indicates the start of a blink.If the user does not supply this he will be prompted by
-%                                a dialog box. This threshold has to be within 15 and 75. If the user supplies a threshold that is not in this range the program
+%                                a dialog box. This threshold has to be within 10 and 75. If the user supplies a threshold that is not in this range the program
 %                                alters the value to be within this range. Default is 25.
 % minframemean         - The minimum mean pixel level of a frame that will not be included in the blink frame array. Default is 15.
 % verbose                  - If the user wants a plot of the difference in frame means obtained from the video with the frames that were tagged as bad marked then
@@ -26,10 +26,10 @@ if blinkthreshold > 75
     disp('Reducing Blink threshold to 75');
     blinkthreshold = 75;
 end
-if blinkthreshold < 15
+if blinkthreshold < 5
     warning('Blink Threshold is too low');
-    disp('Increasing Blink threshold to 15');
-    blinkthreshold = 15;
+    disp('Increasing Blink threshold to 10');
+    blinkthreshold = 5;
 end
 
 % Error check the value if the minimum frame mean
@@ -80,6 +80,8 @@ if (~isempty(possibleblinkstartframenumbers)) && (~isempty(possibleblinkendframe
         blinkstartframenumbers = [1];
         blinkendframenumbers = [possibleblinkendframenumbers(1)];
     end
+    
+
 
 % Similarly if a video ends in a blink there is a decrease in pixel mean with no corresponding increase
     if possibleblinkendframenumbers(end) < possibleblinkstartframenumbers(end)
@@ -125,7 +127,8 @@ reallybadframes = find(framemeans <= minframemean); % These are frames whose mea
 % pixel value is just too low for any worth while analysis to be made.
 
 blinkframes = union(blinkframes,reallybadframes(:));
-
+%also take out numskip
+blinkframes = union(blinkframes,[1:numSkip]);
 if ~isempty(blinkframes)
     % Since the blink could start well before the mean pixel level starts to drop we need to mark adjacent frames just to be on the safe side.
 

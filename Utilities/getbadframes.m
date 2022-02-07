@@ -188,7 +188,7 @@ if togetpeakratiothreshold || togetmovementthreshold
     end
 end
 
-if peakratiothreshold > 0.5
+if peakratiothreshold > 1
     disp('Normalized Peak Difference threshold too high!!');
     warning('Using normalized peak difference of 0.5');
     peakratiothreshold = 0.5;

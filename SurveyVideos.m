@@ -74,5 +74,5 @@ numfiletoanalyse = length(selection);
 
 for i =1:5
     videotoanalyse = filelist{selection(ceil(rand()*numfiletoanalyse))}; 
-    getblinkframes(videotoanalyse, blinkthreshold, minimummeanlevel,1);
+    getblinkframes(videotoanalyse, blinkthreshold, minimummeanlevel,1,0);
 end
