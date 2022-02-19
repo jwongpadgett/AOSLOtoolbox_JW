@@ -7,7 +7,15 @@
 % This script is essentially a macro that calls a series of functions to
 % carry out the analysis steps. These functions should be in
 % ~\MatlabXXXX\toolbox\AOSLO\
+bPRLVid =false;
 
+params.minimummeanlevel = 62; %Use survey videos to judge.%Descriptions at line 115;
+params.nostimmeanlevel= 2;
+params.blinkthreshold =10;
+params.coarseframeincrement =30;
+params.peakratiodiff = 0.3;
+params.maxmotionthreshold=0.05;
+params.badsamplethreshold=0.8;
 screensize = get(0,'ScreenSize');
 
 [fname pname] = uigetfile('*.avi','Please enter filename of the video you want stabilized');
@@ -25,43 +33,45 @@ formatofstabframe = questdlg('In what image format do you want to save the stabi
 formatofstabframe = strcat('.',lower(formatofstabframe));
 
 
-% Set the parameters for the various functions used inthis script
-blinkthreshold = 15;                % This is a maximum change in mean pixel value between
+% Set the parameters for the various functions used inthis scriptsU
+blinkthreshold = params.blinkthreshold;                % This is a maximum change in mean pixel value between
                                     % frames before the function tags the frames as blink
                                     % frames.
-minimummeanlevel = 90;              % This is minimum mean pixel value that a frame has to
+minimummeanlevel = params.minimummeanlevel;              % This is minimum mean pixel value that a frame has to
                                     % have for it to be considered for analyses.
-tofilter = 1;                       % If the video has luminance gradients or has too much pixel noise
+peakratiodiff = params.peakratiodiff;   %from 0.05            % Maximum Change in ratio between the secondpeak and firstpeak
+                                    % between two frames for the frames before the function tags the frames as "bad".
+
+maxmotionthreshold = params.maxmotionthreshold;           % Maximum motion between frames, expressed as a percentage
+                                    % of the frame dimensions, before frames aSre tagged as "bad".
+coarseframeincrement = params.coarseframeincrement;          % The step size used when choosing a subset of frames
+                                    % from the frames that are good. This is used by the
+                                    % makereference_framerate.m function.s
+badsamplethreshold = params.badsamplethreshold;           %from 0.55  % The thresholdthat is used to locate the strips that had
+                                    % good correlations during the analysis procedure. The lower
+                                    % the number the more samples are discarded as "bad matches".
+
+tofilter = 0;                       % If the video has luminance gradients or has too much pixel noise
                                     % then it would be wise to filter the video prior to analyses by setting
                                     % this flag to 1. If not set it to 0.
-gausslowcutoff = 2;                 % Low Frequency cutoff  for the gaussbandfilter.m function
-smoothsd = 1.5;                       % The std. deviation of the gaussian smothing filter that is
+gausslowcutoff = 3;                 % Low Frequency cutoff  for the gaussbandfilter.m function
+smoothsd = 2;                       % The std. deviation of the gaussian smothing filter that is
                                     % applied by the gaussbandfilter.m function.
 toremmeanlum = 0;                   % If the video has luminance artifacts that has high frequency content
                                     % set this flag to 1 to use the removemeanlum.m function, otherwise
                                     % set to 0;
-smoothsdformeanremoval = 0.25;      % The std. deviation of the smoothing function used by the removemeanlum.m
+smoothsdformeanremoval = 15;        % The std. deviation of the smoothing function used by the removemeanlum.m
                                     % function.
-numframestoaverage = -1;             % The number of frame to average toget if you want to remove the influence of
+numframestoaverage = -1;            % The number of frame to average toget if you want to remove the influence of
                                     % the mean frame luminance. If you set it to -1 then the program averages all
                                     % the frames
-peakratiodiff = 0.15;               % Maximum Change in ratio between the secondpeak and firstpeak
-                                    % between two frames for the frames before the % function tags the frames as "bad".
-maxmotionthreshold = 0.1;           % Maximum motion between frames, expressed as a percentage
-                                    % of the frame dimensions, before % frames are tagged as "bad".
-coarseframeincrement = 10;          % The step size used when choosing a subset of frames
-                                    % from the frames that are good. This is used by the
-                                    % makereference_framerate.m function.
-samplerateincrement_priorref = 128;  % The multiple of the framerate that is used
+samplerateincrement_priorref = 30;  % The multiple of the framerate that is used
                                     % to obtain the sample rate of the ocular motion
                                     % trace when using the makereference_priorref.m function.
-samplerateincrement = 128;           % The multiple of the framerate that is used
+samplerateincrement = 30;           % The multiple of the framerate that is used
                                     % to obtain the sample rate of the ocular motion
                                     % trace when using the analysevideo_priorref.m function.
-badsamplethreshold = 0.65;          % The threshold that is used to locate the strips that had
-                                    % good correlations during the analysis procedure. The lower
-                                    % the number the more samples are discarded as "bad matches".
-maintaintimerelationships = 1;      % Certain post analysis questions require the stabilised video
+maintaintimerelationships = 0;      % Certain post analysis questions require the stabilised video
                                     % to reflect accurate time relationships between frames. However
                                     % over the course of the analysis we drop frames that can't be
                                     % analysed accurately. If the user requires accurate time
@@ -75,7 +85,7 @@ blacklineflag = 1;                  % When the eye moves faster than the vertica
                                     % this location. If you find these lines disconcerting, then set this flag to 1,
                                     % otherwise set to 0. These lines are removed by averaging the image data from
                                     % the lines above and below the black lines.
-maxsizeincrement = 3;               % When creating stabilised movies and frames, physical memory is a big issue.
+maxsizeincrement = 2;               % When creating stabilised movies and frames, physical memory is a big issue.
                                     % If the maximum motion in the raw video is too high, MATLAB runs out of
                                     % memory and crashes. To prevent that we have to set a maximum size for the
                                     % stabilised video and frame. The maxsizeincrement sets this limit, as a multiple
@@ -83,16 +93,14 @@ maxsizeincrement = 3;               % When creating stabilised movies and frames
                                     % tested is 2.5. Any image that is outside is set limit is cropped.
 splineflag = 0;                     % When calculating splines during the stabilisation, we could calculate
                                     % splines for individual frames (splineflag = 1), or calculate on spline
-                                    % for the video (splineflag = 0).
+                                    % for the full video (splineflag = 0).
 
-priorref_inputstruct = struct('samplerate',[],'vertsearchzone',55,...
-    'stripheight',9,'badstripthreshold',0.65,'frameincrement',8,...
-    'minpercentofgoodstripsperframe',0.4,'numlinesperfullframe',...
-    numlinesperfullframe); % Structure that contains input arguments for the makereference_priorref.m function.
-analyse_inputstruct = struct('samplerate',[],'vertsearchzone',55,...
-    'horisearchzone',[],'startframe',1,'endframe',-1,'stripheight',9,...
-    'badstripthreshold',0.65,'minpercentofgoodstripsperframe',0.4,'numlinesperfullframe',...
-    numlinesperfullframe); % Structure that contains input arguments for the analysevideo_priorref.m function.
+priorref_inputstruct = struct('samplerate',[],'vertsearchzone',55,'stripheight',13,...
+    'badstripthreshold',badsamplethreshold,'frameincrement',coarseframeincrement,'minpercentofgoodstripsperframe',0.4,...
+    'numlinesperfullframe',numlinesperfullframe); % Structure that contains input arguments for the makereference_priorref.m function.
+analyse_inputstruct = struct('samplerate',[],'vertsearchzone',55,'horisearchzone',[],...
+    'startframe',1,'endframe',-1,'stripheight',13,'badstripthreshold',0.6,'minpercentofgoodstripsperframe',0.4,...
+    'numlinesperfullframe',numlinesperfullframe); % Structure that contains input arguments for the analysevideo_priorref.m function.
 
 % Set the correlation flags for the analyses programs
 correlationflags_framerate =[1;1];% Array that controls the cross-correlations conducted by makereference_framerate
@@ -129,7 +137,7 @@ analyse_inputstruct.samplerate = framerate * samplerateincrement;
 analyse_inputstruct.horisearchzone = floor((3 * framewidth) / 4);
 
 blinkfilename = strcat(videotoanalyse(1:end - 4),'_blinkframes.mat');
-
+stimfilename = strcat(videotoanalyse(1:end - 4),'_stimframes.mat');
 
 if tofilter
     filteredname =  strcat(videotoanalyse(1:end-4),'_bandfilt.avi');
@@ -193,7 +201,9 @@ tic
 set(texthandles(currenttexthandleindex),'FontWeight','Bold');
 currenttexthandleindex = currenttexthandleindex + 1;
 blinkframes = getblinkframes(videotoanalyse, blinkthreshold, minimummeanlevel,blinkverbosity);
-
+if(bPRLVid)
+   stimframes =  getblinkframes(videotoanalyse, blinkthreshold, params.nostimmeanlevel,0);
+end
 if tofilter
     set(texthandles(currenttexthandleindex - 1),'FontWeight','Normal');
     set(texthandles(currenttexthandleindex),'FontWeight','Bold');
@@ -214,13 +224,21 @@ set(texthandles(currenttexthandleindex),'FontWeight','Bold');
 currenttexthandleindex = currenttexthandleindex + 1;
 [goodframesegmentinfo largemovementframes] = getbadframes(finalname,blinkfilename,...
     peakratiodiff, maxmotionthreshold, badframeverbosity);
-
+if(bPRLVid)
+    getbadframes(finalname,stimfilename,...
+    peakratiodiff, maxmotionthreshold, badframeverbosity);    
+end
 set(texthandles(currenttexthandleindex - 1),'FontWeight','Normal');
 set(texthandles(currenttexthandleindex),'FontWeight','Bold');
 currenttexthandleindex = currenttexthandleindex + 1;
-[coarsereffilename, coarsereferimage] = makereference_framerate(finalname,...
-    blinkfilename, coarseframeincrement, badsamplethreshold,correlationflags_framerate,coarserefverbosity);
+if(bPRLVid)
+    [coarsereffilename, coarsereferimage] = makereference_framerate(finalname,...
+        stimfilename, coarseframeincrement, badsamplethreshold,correlationflags_framerate,coarserefverbosity);
+else
+    [coarsereffilename, coarsereferimage] = makereference_framerate(finalname,...
+        blinkfilename, coarseframeincrement, badsamplethreshold,correlationflags_framerate,coarserefverbosity);
 
+end
 set(texthandles(currenttexthandleindex - 1),'FontWeight','Normal');
 set(texthandles(currenttexthandleindex),'FontWeight','Bold');
 currenttexthandleindex = currenttexthandleindex + 1;
